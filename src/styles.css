@@ -1,0 +1,205 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  /* Cor Institucional Principal do Grupo Infinity */
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  /* Estados de Feedback Semânticos */
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-danger: var(--danger);
+  --color-danger-foreground: var(--danger-foreground);
+  --color-destructive: var(--danger);
+  --color-destructive-foreground: var(--danger-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Paleta Estética & Médica Exclusiva */
+  --color-champagne: var(--champagne);
+  --color-sand: var(--sand);
+  --color-espresso: var(--espresso);
+  --color-olive-deep: var(--olive-deep);
+
+  --font-display: "Manrope", "Cormorant Garamond", Georgia, serif;
+  --font-sans: "Inter", "Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-heading: "Manrope", sans-serif;
+}
+
+:root {
+  --radius: 0.375rem;
+
+  /* Fundo e Superfícies Clínicas Limpas */
+  --background: #fcfcfb;
+  --foreground: #1e2429;
+  --surface: #ffffff;
+  --surface-muted: #f4f5f6;
+
+  --card: #ffffff;
+  --card-foreground: #1e2429;
+  --popover: #ffffff;
+  --popover-foreground: #1e2429;
+
+  /* Cor Institucional Centralizada (Grupo Infinity: Grafite/Oliva Nobre) */
+  --primary: #232b2f;
+  --primary-foreground: #fcfcfb;
+
+  --secondary: #f0f2f3;
+  --secondary-foreground: #232b2f;
+
+  --muted: #f3f5f6;
+  --muted-foreground: #67747e;
+
+  --accent: #f7f5f2;
+  --accent-foreground: #232b2f;
+
+  --border: #e6e9ec;
+  --input: #e6e9ec;
+  --ring: #232b2f;
+
+  /* Cores de Alerta e Status Clínico */
+  --success: #166534;
+  --success-foreground: #f0fdf4;
+  --warning: #b45309;
+  --warning-foreground: #fffbeb;
+  --danger: #991b1b;
+  --danger-foreground: #fef2f2;
+  --info: #1e40af;
+  --info-foreground: #eff6ff;
+
+  /* Acentos de Sofisticação */
+  --champagne: #c5a880;
+  --sand: #f7f5f1;
+  --espresso: #1a1e21;
+  --olive-deep: #283330;
+}
+
+.dark {
+  --background: #0f1214;
+  --foreground: #f2f4f6;
+  --surface: #15191d;
+  --surface-muted: #1c2227;
+
+  --card: #15191d;
+  --card-foreground: #f2f4f6;
+  --popover: #15191d;
+  --popover-foreground: #f2f4f6;
+
+  --primary: #e6ecf0;
+  --primary-foreground: #0f1214;
+
+  --secondary: #1f262c;
+  --secondary-foreground: #f2f4f6;
+
+  --muted: #1c2227;
+  --muted-foreground: #8a97a3;
+
+  --accent: #1e252a;
+  --accent-foreground: #f2f4f6;
+
+  --border: #262e35;
+  --input: #262e35;
+  --ring: #e6ecf0;
+
+  --success: #22c55e;
+  --success-foreground: #052e16;
+  --warning: #f59e0b;
+  --warning-foreground: #451a03;
+  --danger: #ef4444;
+  --danger-foreground: #450a0a;
+  --info: #3b82f6;
+  --info-foreground: #172554;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    letter-spacing: -0.011em;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-heading);
+    letter-spacing: -0.02em;
+  }
+}
+
+@utility heading-display {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+}
+
+@utility eyebrow {
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+@utility hairline {
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--color-border), transparent);
+}
+
+@utility fade-up {
+  opacity: 0;
+  transform: translateY(16px);
+  transition:
+    opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@utility fade-up-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
