@@ -5,18 +5,25 @@ import { AppShell } from "@/components/layout/app-shell";
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async () => {
-    // Validação estrita de autenticação via Supabase
+    // Se estiver rodando no servidor (SSR), não bloqueia porque o token de sessão reside no localStorage do navegador
+    if (typeof window === "undefined") {
+      return {};
+    }
+
+    // Validação estrita de autenticação via Supabase no cliente
     try {
-      const { data, error } = await supabase.auth.getUser();
-      if (error || !data?.user) {
+      const { data, error } = await supabase.auth.getSession();
+      if (error || !data?.session?.user) {
         throw redirect({ to: "/login" });
       }
+
+      const user = data.session.user;
 
       // Validação de perfil ativo
       const { data: profile } = await supabase
         .from("profiles")
         .select("id, full_name, role_id, is_active")
-        .eq("id", data.user.id)
+        .eq("id", user.id)
         .maybeSingle();
 
       if (profile && profile.is_active === false) {
@@ -25,11 +32,11 @@ export const Route = createFileRoute("/_authenticated")({
       }
 
       // Validação se o e-mail consta na lista de credenciados
-      if (data.user.email) {
+      if (user.email) {
         const { data: accredited } = await supabase
           .from("accredited_emails")
           .select("email, is_active")
-          .eq("email", data.user.email.toLowerCase())
+          .eq("email", user.email.toLowerCase())
           .maybeSingle();
 
         if (accredited && accredited.is_active === false) {
@@ -38,7 +45,7 @@ export const Route = createFileRoute("/_authenticated")({
         }
       }
 
-      return { user: data.user, profile };
+      return { user, profile };
     } catch (err) {
       if (err && typeof err === "object" && "to" in err) {
         throw err;

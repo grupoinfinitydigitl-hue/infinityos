@@ -89,10 +89,10 @@ function LoginPage() {
         description: `Login seguro efetuado: ${profile?.full_name || accredited?.full_name || cleanEmail} (${profile?.role_id || accredited?.role_id || "CRED"})`,
       });
 
-      navigate({ to: "/dashboard" });
+      // Redirecionamento completo para carregar toda a aplicação com a nova sessão ativa
+      window.location.href = "/dashboard";
     } catch (err: any) {
       setErro(err?.message || "Falha na autenticação. Tente novamente.");
-    } finally {
       setCarregando(false);
     }
   };
