@@ -155,3 +155,20 @@ BEGIN
   );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
+
+-- 5. SINCRONIZAÇÃO DE USUÁRIOS JÁ CRIADOS EM AUTH.USERS COM PUBLIC.PROFILES
+INSERT INTO public.profiles (id, full_name, email, role_id, is_active)
+SELECT 
+    u.id, 
+    COALESCE(a.full_name, split_part(u.email, '@', 1)), 
+    u.email, 
+    COALESCE(a.role_id, 'RECEPCAO'), 
+    COALESCE(a.is_active, true)
+FROM auth.users u
+LEFT JOIN public.accredited_emails a ON LOWER(a.email) = LOWER(u.email)
+ON CONFLICT (id) DO UPDATE
+SET full_name = EXCLUDED.full_name,
+    role_id = EXCLUDED.role_id,
+    is_active = EXCLUDED.is_active,
+    updated_at = now();
+
