@@ -2,20 +2,6 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "./types";
 
-function isNewSupabaseApiKey(value: string): boolean {
-  return value.startsWith("sb_publishable_") || value.startsWith("sb_secret_");
-}
-
-function createSupabaseFetch(supabaseKey: string): typeof fetch {
-  const isNew = isNewSupabaseApiKey(supabaseKey);
-  return (input, init = {}) => {
-    const headers = new Headers(init.headers);
-    headers.set(isNew ? "apikey" : "Authorization", isNew ? supabaseKey : `Bearer ${supabaseKey}`);
-    headers.set("apikey", supabaseKey);
-    return fetch(input, { ...init, headers });
-  };
-}
-
 function createSupabaseClient() {
   let SUPABASE_URL =
     import.meta.env["VITE_SUPABASE_URL"] ||
@@ -38,9 +24,6 @@ function createSupabaseClient() {
   }
 
   return createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-    global: {
-      fetch: createSupabaseFetch(SUPABASE_PUBLISHABLE_KEY),
-    },
     auth: {
       persistSession: true,
       autoRefreshToken: true,

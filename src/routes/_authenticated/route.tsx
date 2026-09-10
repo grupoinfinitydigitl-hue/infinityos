@@ -1,61 +1,92 @@
-import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/layout/app-shell";
+import { LoadingState } from "@/components/ui/loading-state";
 
 export const Route = createFileRoute("/_authenticated")({
-  ssr: false,
-  beforeLoad: async () => {
-    // Se estiver rodando no servidor (SSR), não bloqueia porque o token de sessão reside no localStorage do navegador
-    if (typeof window === "undefined") {
-      return {};
-    }
+  component: AuthenticatedLayout,
+});
 
-    // Validação estrita de autenticação via Supabase no cliente
-    try {
-      const { data, error } = await supabase.auth.getSession();
-      if (error || !data?.session?.user) {
-        throw redirect({ to: "/login" });
-      }
+function AuthenticatedLayout() {
+  const navigate = useNavigate();
+  const [checking, setChecking] = useState(true);
+  const [authorized, setAuthorized] = useState(false);
 
-      const user = data.session.user;
+  useEffect(() => {
+    let isMounted = true;
 
-      // Validação de perfil ativo
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("id, full_name, role_id, is_active")
-        .eq("id", user.id)
-        .maybeSingle();
+    async function verifyAuth() {
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (!data?.session?.user) {
+          if (isMounted) {
+            navigate({ to: "/login" });
+          }
+          return;
+        }
 
-      if (profile && profile.is_active === false) {
-        await supabase.auth.signOut();
-        throw redirect({ to: "/login" });
-      }
+        // Validação de e-mail institucional na lista credenciada
+        const userEmail = data.session.user.email?.toLowerCase();
+        if (userEmail) {
+          const { data: accredited } = await supabase
+            .from("accredited_emails")
+            .select("is_active")
+            .eq("email", userEmail)
+            .maybeSingle();
 
-      // Validação se o e-mail consta na lista de credenciados
-      if (user.email) {
-        const { data: accredited } = await supabase
-          .from("accredited_emails")
-          .select("email, is_active")
-          .eq("email", user.email.toLowerCase())
-          .maybeSingle();
+          if (accredited && accredited.is_active === false) {
+            await supabase.auth.signOut();
+            if (isMounted) {
+              navigate({ to: "/login" });
+            }
+            return;
+          }
+        }
 
-        if (accredited && accredited.is_active === false) {
-          await supabase.auth.signOut();
-          throw redirect({ to: "/login" });
+        if (isMounted) {
+          setAuthorized(true);
+          setChecking(false);
+        }
+      } catch (err) {
+        console.error("Auth verification error:", err);
+        if (isMounted) {
+          navigate({ to: "/login" });
         }
       }
-
-      return { user, profile };
-    } catch (err) {
-      if (err && typeof err === "object" && "to" in err) {
-        throw err;
-      }
-      throw redirect({ to: "/login" });
     }
-  },
-  component: () => (
+
+    verifyAuth();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT" || !session) {
+        if (isMounted) {
+          navigate({ to: "/login" });
+        }
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      authListener?.subscription.unsubscribe();
+    };
+  }, [navigate]);
+
+  if (checking) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-surface-muted/60">
+        <LoadingState message="Validando credenciais do corpo clínico..." />
+      </div>
+    );
+  }
+
+  if (!authorized) {
+    return null;
+  }
+
+  return (
     <AppShell>
       <Outlet />
     </AppShell>
-  ),
-});
+  );
+}
