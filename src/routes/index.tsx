@@ -621,7 +621,7 @@ function LandingPage() {
             <div className="absolute bottom-6 left-6 bg-background/95 px-5 py-3 backdrop-blur-sm border border-border/60 shadow-md">
               <p className="heading-display text-lg">Dra. Rhauana Ângela</p>
               <p className="text-[0.65rem] uppercase tracking-[0.22em] text-muted-foreground">
-                Médica Esteticista · CRM/GO 35139 · BA 38285
+                Médica · CRM/GO 35139 · BA 38285
               </p>
             </div>
           </Reveal>
@@ -1133,7 +1133,7 @@ function LandingPage() {
             <div className="absolute bottom-6 right-6 bg-background/95 px-5 py-3 backdrop-blur-sm border border-border/60 shadow-md">
               <p className="heading-display text-lg">Dra. Rhauana Ângela</p>
               <p className="text-[0.65rem] uppercase tracking-[0.22em] text-muted-foreground">
-                Médica Esteticista · CRM/GO 35139 · BA 38285
+                Médica · CRM/GO 35139 · BA 38285
               </p>
             </div>
           </div>
@@ -1282,7 +1282,7 @@ function LandingPage() {
               durante a consulta médica presencial.
             </p>
             <p>
-              Dra. Rhauana Ângela · Médica Esteticista · CRM/GO 35139 · CRM/BA 38285 · Goiânia e
+              Dra. Rhauana Ângela · Médica · CRM/GO 35139 · CRM/BA 38285 · Goiânia e
               Região
             </p>
           </div>
