@@ -24,6 +24,20 @@ export const Route = createFileRoute("/_authenticated")({
         throw redirect({ to: "/login" });
       }
 
+      // Validação se o e-mail consta na lista de credenciados
+      if (data.user.email) {
+        const { data: accredited } = await supabase
+          .from("accredited_emails")
+          .select("email, is_active")
+          .eq("email", data.user.email.toLowerCase())
+          .maybeSingle();
+
+        if (accredited && accredited.is_active === false) {
+          await supabase.auth.signOut();
+          throw redirect({ to: "/login" });
+        }
+      }
+
       return { user: data.user, profile };
     } catch (err) {
       if (err && typeof err === "object" && "to" in err) {

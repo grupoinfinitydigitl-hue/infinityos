@@ -39,19 +39,34 @@ function LoginPage() {
     setCarregando(true);
 
     try {
-      // 1. Autenticação estrita contra o Supabase Auth
+      const cleanEmail = email.trim().toLowerCase();
+
+      // 1. Verificação de credenciamento na lista oficial do Supabase
+      const { data: accredited, error: accError } = await supabase
+        .from("accredited_emails")
+        .select("email, full_name, role_id, is_active")
+        .eq("email", cleanEmail)
+        .maybeSingle();
+
+      if (!accError && accredited) {
+        if (accredited.is_active === false) {
+          throw new Error("Acesso suspenso. Este perfil foi desativado pela Administração do Grupo Infinity.");
+        }
+      }
+
+      // 2. Autenticação estrita contra o Supabase Auth
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
+        email: cleanEmail,
         password: senha,
       });
 
       if (error || !data.user) {
         throw new Error(
-          "E-mail ou senha incorretos. Apenas profissionais e colaboradores credenciados possuem acesso.",
+          "Credenciais inválidas ou e-mail não autorizado. O acesso é restrito aos profissionais credenciados da clínica.",
         );
       }
 
-      // 2. Validação de perfil cadastrado e ativo
+      // 3. Validação de perfil cadastrado e ativo
       const { data: profile } = await supabase
         .from("profiles")
         .select("id, full_name, role_id, is_active")
@@ -60,13 +75,13 @@ function LoginPage() {
 
       if (profile && profile.is_active === false) {
         await supabase.auth.signOut();
-        throw new Error("Acesso suspenso. Seu cadastro está inativo. Procure a Administração.");
+        throw new Error("Acesso suspenso. Seu perfil está inativo no sistema.");
       }
 
       await logAuditAction({
         action: "LOGIN",
         entityType: "auth_session",
-        description: `Login seguro efetuado: ${profile?.full_name || email} (${profile?.role_id || "CRED"})`,
+        description: `Login seguro efetuado: ${profile?.full_name || accredited?.full_name || cleanEmail} (${profile?.role_id || accredited?.role_id || "CRED"})`,
       });
 
       navigate({ to: "/dashboard" });
