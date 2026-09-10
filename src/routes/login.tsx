@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { logAuditAction } from "@/services/audit-service";
-import { ArrowRight, Lock, ShieldCheck, AlertCircle } from "lucide-react";
+import { ArrowRight, Lock, ShieldCheck, AlertCircle, Eye, EyeOff } from "lucide-react";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -21,6 +21,7 @@ function LoginPage() {
   const [senha, setSenha] = useState("");
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [mostrarSenha, setMostrarSenha] = useState(false);
   const [recuperandoSenha, setRecuperandoSenha] = useState(false);
   const [avisoRecuperacao, setAvisoRecuperacao] = useState<string | null>(null);
 
@@ -61,8 +62,12 @@ function LoginPage() {
       });
 
       if (error || !data.user) {
+        console.error("Supabase login error:", error);
+        if (error?.message?.toLowerCase().includes("invalid login credentials")) {
+          throw new Error("Senha incorreta. Verifique se digitou a senha exatamente como configurada (@1Acessorestrito).");
+        }
         throw new Error(
-          "Credenciais inválidas ou e-mail não autorizado. O acesso é restrito aos profissionais credenciados da clínica.",
+          error?.message || "Credenciais inválidas ou e-mail não autorizado.",
         );
       }
 
@@ -160,14 +165,28 @@ function LoginPage() {
                     Esqueci a senha
                   </button>
                 </div>
-                <input
-                  type="password"
-                  required
-                  value={senha}
-                  onChange={(e) => setSenha(e.target.value)}
-                  placeholder="••••••••"
-                  className="mt-1.5 h-10 w-full rounded-lg border border-border bg-surface px-3 text-xs outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary"
-                />
+                <div className="relative mt-1.5">
+                  <input
+                    type={mostrarSenha ? "text" : "password"}
+                    required
+                    value={senha}
+                    onChange={(e) => setSenha(e.target.value)}
+                    placeholder="••••••••"
+                    className="h-10 w-full rounded-lg border border-border bg-surface px-3 pr-10 text-xs outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setMostrarSenha(!mostrarSenha)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1"
+                    title={mostrarSenha ? "Ocultar senha" : "Ver senha digitada"}
+                  >
+                    {mostrarSenha ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
               </div>
 
               {erro && (
