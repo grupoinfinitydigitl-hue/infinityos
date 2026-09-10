@@ -3,7 +3,50 @@
 -- Apenas e-mails previamente credenciados possuem acesso
 -- ==========================================================
 
--- 1. TABELA DE E-MAILS CREDENCIADOS (LISTA OFICIAL DE PROFISSIONAIS E EQUIPE)
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+-- 1. ESTRUTURA DE PAPÉIS (ROLES)
+CREATE TABLE IF NOT EXISTS public.roles (
+    id text PRIMARY KEY,
+    name text NOT NULL,
+    description text,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+
+INSERT INTO public.roles (id, name, description) VALUES
+    ('ADMINISTRADOR', 'Administrador do Sistema', 'Acesso irrestrito a configurações, auditoria e cadastros'),
+    ('MEDICO', 'Médico / Corpo Clínico', 'Atendimento clínico, prontuários, prescrições e cirurgias'),
+    ('ENFERMAGEM', 'Equipe de Enfermagem', 'Triagem, checagem de sinais vitais, CME e centro cirúrgico'),
+    ('RECEPCAO', 'Recepção e Atendimento', 'Agendamento de consultas, cadastro de pacientes e pagamentos')
+ON CONFLICT (id) DO NOTHING;
+
+-- 2. PERFIS DE USUÁRIOS
+CREATE TABLE IF NOT EXISTS public.profiles (
+    id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    full_name text NOT NULL,
+    email text NOT NULL UNIQUE,
+    phone text,
+    avatar_url text,
+    role_id text NOT NULL REFERENCES public.roles(id) DEFAULT 'RECEPCAO',
+    is_active boolean NOT NULL DEFAULT true,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE tablename = 'profiles' AND policyname = 'Perfis visíveis por usuários autenticados'
+    ) THEN
+        CREATE POLICY "Perfis visíveis por usuários autenticados"
+            ON public.profiles FOR SELECT
+            TO authenticated
+            USING (true);
+    END IF;
+END $$;
+
+-- 3. TABELA DE E-MAILS CREDENCIADOS (LISTA OFICIAL DE PROFISSIONAIS E EQUIPE)
 CREATE TABLE IF NOT EXISTS public.accredited_emails (
     email text PRIMARY KEY,
     full_name text NOT NULL,
@@ -17,22 +60,32 @@ CREATE TABLE IF NOT EXISTS public.accredited_emails (
 -- Habilita RLS
 ALTER TABLE public.accredited_emails ENABLE ROW LEVEL SECURITY;
 
--- Permite verificação de credenciamento no momento do login (leitura segura de e-mail e status ativo)
-CREATE POLICY "Verificação de e-mail credenciado no login"
-    ON public.accredited_emails FOR SELECT
-    TO anon, authenticated
-    USING (true);
+DO $$ BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE tablename = 'accredited_emails' AND policyname = 'Verificação de e-mail credenciado no login'
+    ) THEN
+        CREATE POLICY "Verificação de e-mail credenciado no login"
+            ON public.accredited_emails FOR SELECT
+            TO anon, authenticated
+            USING (true);
+    END IF;
+END $$;
 
--- Apenas administradores podem inserir ou alterar a lista de credenciados
-CREATE POLICY "Gestão de credenciados apenas para administradores"
-    ON public.accredited_emails FOR ALL
-    TO authenticated
-    USING (
-        EXISTS (
-            SELECT 1 FROM public.profiles
-            WHERE id = auth.uid() AND role_id = 'ADMINISTRADOR'
-        )
-    );
+DO $$ BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE tablename = 'accredited_emails' AND policyname = 'Gestão de credenciados apenas para administradores'
+    ) THEN
+        CREATE POLICY "Gestão de credenciados apenas para administradores"
+            ON public.accredited_emails FOR ALL
+            TO authenticated
+            USING (
+                EXISTS (
+                    SELECT 1 FROM public.profiles
+                    WHERE id = auth.uid() AND role_id = 'ADMINISTRADOR'
+                )
+            );
+    END IF;
+END $$;
 
 -- 2. SEMENTE INICIAL DE PROFISSIONAIS E COLABORADORES CREDENCIADOS
 INSERT INTO public.accredited_emails (email, full_name, role_id, is_active, notes) VALUES
