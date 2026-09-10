@@ -36,11 +36,11 @@ export const requireSupabaseAuth = createMiddleware({ type: "function" }).server
     const SUPABASE_URL =
       process.env["SUPABASE_URL"] ||
       process.env["VITE_SUPABASE_URL"] ||
-      "https://bgfxqhovkvstducqcsva.supabase.co";
+      "https://gjkclsptqenataswosjp.supabase.co";
     const SUPABASE_PUBLISHABLE_KEY =
       process.env["SUPABASE_PUBLISHABLE_KEY"] ||
       process.env["VITE_SUPABASE_PUBLISHABLE_KEY"] ||
-      "sb_publishable_WYddJLdLjHaeh6ZHIxf61Q_OkJdC5Qj";
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdqa2Nsc3B0cWVuYXRhc3dvc2pwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwMDA1NTgsImV4cCI6MjEwNDU3NjU1OH0.Yy6RG4v7ypY0Efxq9LjBCW2h0QcQlw0ICBukQrADLJo";
 
     const request = getRequest();
 

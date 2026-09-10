@@ -20,6 +20,19 @@ INSERT INTO public.roles (id, name, description) VALUES
     ('RECEPCAO', 'Recepção e Atendimento', 'Agendamento de consultas, cadastro de pacientes e pagamentos')
 ON CONFLICT (id) DO NOTHING;
 
+ALTER TABLE public.roles ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE tablename = 'roles' AND policyname = 'Leitura de papéis no sistema'
+    ) THEN
+        CREATE POLICY "Leitura de papéis no sistema"
+            ON public.roles FOR SELECT
+            TO anon, authenticated
+            USING (true);
+    END IF;
+END $$;
+
 -- 2. PERFIS DE USUÁRIOS
 CREATE TABLE IF NOT EXISTS public.profiles (
     id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
