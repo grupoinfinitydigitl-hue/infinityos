@@ -5,31 +5,32 @@ import { AppShell } from "@/components/layout/app-shell";
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async () => {
-    // 1. Verifica autenticação oficial via Supabase
+    // Validação estrita de autenticação via Supabase
     try {
-      const { data } = await supabase.auth.getUser();
-      if (data?.user) {
-        return { user: data.user };
+      const { data, error } = await supabase.auth.getUser();
+      if (error || !data?.user) {
+        throw redirect({ to: "/login" });
       }
-    } catch {
-      // Falha silenciosa
-    }
 
-    // 2. Verifica sessão demonstrativa local
-    if (typeof window !== "undefined") {
-      const demoUser = localStorage.getItem("infinity_os_demo_user");
-      if (demoUser) {
-        try {
-          const parsed = JSON.parse(demoUser);
-          return { user: parsed };
-        } catch {
-          // JSON inválido
-        }
+      // Validação de perfil ativo
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id, full_name, role_id, is_active")
+        .eq("id", data.user.id)
+        .maybeSingle();
+
+      if (profile && profile.is_active === false) {
+        await supabase.auth.signOut();
+        throw redirect({ to: "/login" });
       }
-    }
 
-    // Se não autenticado por nenhum método, redireciona para o login
-    throw redirect({ to: "/login" });
+      return { user: data.user, profile };
+    } catch (err) {
+      if (err && typeof err === "object" && "to" in err) {
+        throw err;
+      }
+      throw redirect({ to: "/login" });
+    }
   },
   component: () => (
     <AppShell>

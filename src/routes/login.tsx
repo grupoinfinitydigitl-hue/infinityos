@@ -2,8 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { logAuditAction } from "@/services/audit-service";
-import { DEMO_PROFILES } from "@/services/mock-data";
-import { Shield, KeyRound, ArrowRight, Lock, CheckCircle2 } from "lucide-react";
+import { ArrowRight, Lock, ShieldCheck, AlertCircle } from "lucide-react";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -25,12 +24,10 @@ function LoginPage() {
   const [recuperandoSenha, setRecuperandoSenha] = useState(false);
   const [avisoRecuperacao, setAvisoRecuperacao] = useState<string | null>(null);
 
-  // Redireciona se já houver sessão ativa
+  // Redireciona se já houver sessão autenticada ativa no Supabase
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) {
-        navigate({ to: "/dashboard" });
-      } else if (localStorage.getItem("infinity_os_demo_user")) {
         navigate({ to: "/dashboard" });
       }
     });
@@ -42,48 +39,37 @@ function LoginPage() {
     setCarregando(true);
 
     try {
-      // 1. Tenta login no Supabase
+      // 1. Autenticação estrita contra o Supabase Auth
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password: senha,
       });
 
-      if (!error && data.user) {
-        await logAuditAction({
-          action: "LOGIN",
-          entityType: "auth_session",
-          description: `Login realizado com sucesso via Supabase: ${email}`,
-        });
-        navigate({ to: "/dashboard" });
-        return;
+      if (error || !data.user) {
+        throw new Error(
+          "E-mail ou senha incorretos. Apenas profissionais e colaboradores credenciados possuem acesso.",
+        );
       }
 
-      // 2. Se credenciais correspondem a um perfil demo ou o banco ainda está sem usuários criados
-      const demoProfile = DEMO_PROFILES.find(
-        (p) => p.email.toLowerCase() === email.trim().toLowerCase(),
-      );
+      // 2. Validação de perfil cadastrado e ativo
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id, full_name, role_id, is_active")
+        .eq("id", data.user.id)
+        .maybeSingle();
 
-      if (demoProfile || (email && senha.length >= 6)) {
-        const userToSave = demoProfile || {
-          id: "user-custom",
-          fullName: "Profissional Infinity",
-          email,
-          role: "MEDICO",
-          isActive: true,
-          createdAt: new Date().toISOString(),
-        };
-
-        localStorage.setItem("infinity_os_demo_user", JSON.stringify(userToSave));
-        await logAuditAction({
-          action: "LOGIN",
-          entityType: "auth_session",
-          description: `Login efetuado: ${userToSave.fullName} (${userToSave.role})`,
-        });
-        navigate({ to: "/dashboard" });
-        return;
+      if (profile && profile.is_active === false) {
+        await supabase.auth.signOut();
+        throw new Error("Acesso suspenso. Seu cadastro está inativo. Procure a Administração.");
       }
 
-      throw new Error("E-mail ou senha incorretos. Verifique suas credenciais.");
+      await logAuditAction({
+        action: "LOGIN",
+        entityType: "auth_session",
+        description: `Login seguro efetuado: ${profile?.full_name || email} (${profile?.role_id || "CRED"})`,
+      });
+
+      navigate({ to: "/dashboard" });
     } catch (err: any) {
       setErro(err?.message || "Falha na autenticação. Tente novamente.");
     } finally {
@@ -91,35 +77,22 @@ function LoginPage() {
     }
   };
 
-  const handleQuickDemoLogin = async (profileIndex: number) => {
-    const profile = DEMO_PROFILES[profileIndex];
-    if (!profile) return;
-    setCarregando(true);
-
-    localStorage.setItem("infinity_os_demo_user", JSON.stringify(profile));
-    await logAuditAction({
-      action: "LOGIN",
-      entityType: "auth_session",
-      description: `Acesso demonstrativo rápido ativado: ${profile.fullName} (${profile.role})`,
-    });
-
-    navigate({ to: "/dashboard" });
-  };
-
   const handleRecuperarSenha = async (e: React.FormEvent) => {
     e.preventDefault();
     setAvisoRecuperacao(null);
     if (!email) {
-      setErro("Informe seu e-mail para recuperação.");
+      setErro("Informe seu e-mail institucional para recuperação.");
       return;
     }
     setCarregando(true);
     try {
       await supabase.auth.resetPasswordForEmail(email.trim());
-      setAvisoRecuperacao("Instruções de redefinição enviadas para seu e-mail institucional.");
+      setAvisoRecuperacao(
+        "Se o e-mail estiver credenciado, as instruções de redefinição serão enviadas.",
+      );
     } catch {
       setAvisoRecuperacao(
-        "Se o e-mail estiver cadastrado, as instruções serão enviadas em instantes.",
+        "Se o e-mail estiver credenciado, as instruções de redefinição serão enviadas.",
       );
     } finally {
       setCarregando(false);
@@ -154,7 +127,7 @@ function LoginPage() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="dra.rhauana@grupoinfinity.med.br"
+                  placeholder="seu.email@grupoinfinity.med.br"
                   className="mt-1.5 h-10 w-full rounded-lg border border-border bg-surface px-3 text-xs outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary"
                 />
               </div>
@@ -183,8 +156,9 @@ function LoginPage() {
               </div>
 
               {erro && (
-                <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-xs text-destructive">
-                  {erro}
+                <div className="flex items-start gap-2.5 rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-xs text-destructive">
+                  <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                  <span>{erro}</span>
                 </div>
               )}
 
@@ -193,7 +167,7 @@ function LoginPage() {
                 disabled={carregando}
                 className="mt-2 flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 text-xs font-medium uppercase tracking-widest text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-50"
               >
-                {carregando ? "Verificando…" : "Entrar no sistema"}
+                {carregando ? "Autenticando…" : "Entrar no sistema"}
                 <ArrowRight className="h-3.5 w-3.5" />
               </button>
             </form>
@@ -204,7 +178,7 @@ function LoginPage() {
                   Recuperação de Acesso
                 </h3>
                 <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
-                  Digite seu e-mail cadastrado para receber as orientações de redefinição segura.
+                  Digite seu e-mail cadastrado no sistema para receber as instruções de recuperação.
                 </p>
               </div>
 
@@ -228,10 +202,20 @@ function LoginPage() {
                 </div>
               )}
 
+              {erro && (
+                <div className="flex items-start gap-2.5 rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-xs text-destructive">
+                  <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                  <span>{erro}</span>
+                </div>
+              )}
+
               <div className="flex items-center gap-2 pt-2">
                 <button
                   type="button"
-                  onClick={() => setRecuperandoSenha(false)}
+                  onClick={() => {
+                    setRecuperandoSenha(false);
+                    setErro(null);
+                  }}
                   className="h-10 flex-1 rounded-lg border border-border px-3 text-xs font-medium text-muted-foreground hover:text-foreground"
                 >
                   Voltar
@@ -247,56 +231,17 @@ function LoginPage() {
             </form>
           )}
 
-          {/* Atalhos rápidos para validação e testes */}
-          <div className="mt-8 border-t border-border pt-6">
-            <p className="text-[0.68rem] uppercase tracking-[0.14em] text-muted-foreground font-semibold text-center mb-3">
-              Perfis de Demonstração (Acesso Rápido)
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => handleQuickDemoLogin(1)}
-                className="flex flex-col items-start rounded-lg border border-border p-2.5 text-left transition-colors hover:border-primary/40 hover:bg-surface-muted"
-              >
-                <span className="text-xs font-semibold text-foreground">Dra. Rhauana Ângela</span>
-                <span className="text-[0.65rem] text-muted-foreground">
-                  Médica / RT (CRM 35139)
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickDemoLogin(0)}
-                className="flex flex-col items-start rounded-lg border border-border p-2.5 text-left transition-colors hover:border-primary/40 hover:bg-surface-muted"
-              >
-                <span className="text-xs font-semibold text-foreground">Administrador</span>
-                <span className="text-[0.65rem] text-muted-foreground">Gestão Total e RLS</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickDemoLogin(2)}
-                className="flex flex-col items-start rounded-lg border border-border p-2.5 text-left transition-colors hover:border-primary/40 hover:bg-surface-muted"
-              >
-                <span className="text-xs font-semibold text-foreground">Recepção</span>
-                <span className="text-[0.65rem] text-muted-foreground">Agenda e Check-in</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickDemoLogin(3)}
-                className="flex flex-col items-start rounded-lg border border-border p-2.5 text-left transition-colors hover:border-primary/40 hover:bg-surface-muted"
-              >
-                <span className="text-xs font-semibold text-foreground">Enf. Patrícia</span>
-                <span className="text-[0.65rem] text-muted-foreground">Assistencial & CME</span>
-              </button>
+          <div className="mt-6 border-t border-border pt-4 text-center">
+            <div className="flex items-center justify-center gap-1.5 text-[0.7rem] text-muted-foreground">
+              <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+              <span>Acesso restrito ao corpo clínico e equipe autorizada</span>
             </div>
           </div>
         </div>
 
         <div className="mt-6 flex items-center justify-center gap-2 text-[0.7rem] text-muted-foreground">
           <Lock className="h-3 w-3" />
-          <span>Comunicação criptografada com auditoria ativa</span>
+          <span>Autenticação criptografada com controle de acesso RBAC</span>
         </div>
       </div>
     </div>

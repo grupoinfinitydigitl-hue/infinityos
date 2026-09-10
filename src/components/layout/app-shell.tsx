@@ -89,13 +89,57 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     Gestão: false,
   });
 
+  const [currentUser, setCurrentUser] = useState<{
+    name: string;
+    role: string;
+    initials: string;
+  }>({
+    name: "Equipe Infinity",
+    role: "Corpo Clínico",
+    initials: "EI",
+  });
+
+  useEffect(() => {
+    async function loadUser() {
+      try {
+        const { data } = await supabase.auth.getUser();
+        if (data?.user) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("full_name, role_id")
+            .eq("id", data.user.id)
+            .maybeSingle();
+
+          const name =
+            profile?.full_name ||
+            data.user.user_metadata?.full_name ||
+            data.user.email?.split("@")[0] ||
+            "Profissional Infinity";
+
+          const role = profile?.role_id || "Corpo Clínico";
+          const initials =
+            name
+              .split(" ")
+              .filter(Boolean)
+              .slice(0, 2)
+              .map((n: string) => n[0].toUpperCase())
+              .join("") || "EI";
+
+          setCurrentUser({ name, role, initials });
+        }
+      } catch {
+        // Fallback
+      }
+    }
+    loadUser();
+  }, []);
+
   const toggleGroup = (groupName: string) => {
     setOpenGroups((prev) => ({ ...prev, [groupName]: !prev[groupName] }));
   };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    localStorage.removeItem("infinity_os_demo_user");
     navigate({ to: "/login" });
   };
 
@@ -240,13 +284,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             )}
           >
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-xs">
-              R
+              {currentUser.initials}
             </div>
             {!isCollapsed && (
               <div className="flex-1 min-w-0">
-                <p className="truncate text-xs font-medium text-foreground">Dra. Rhauana Ângela</p>
+                <p className="truncate text-xs font-medium text-foreground">{currentUser.name}</p>
                 <p className="truncate text-[0.65rem] text-muted-foreground">
-                  Corpo Clínico · CRM 35139
+                  {currentUser.role}
                 </p>
               </div>
             )}
@@ -362,10 +406,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <UserCircle className="h-6 w-6 text-muted-foreground" />
               <div className="hidden md:block text-left">
                 <p className="text-xs font-medium text-foreground leading-none">
-                  Dra. Rhauana Ângela
+                  {currentUser.name}
                 </p>
                 <p className="text-[0.65rem] text-muted-foreground leading-none mt-1">
-                  Responsável Técnica
+                  {currentUser.role}
                 </p>
               </div>
             </div>
